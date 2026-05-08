@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>엘리엇 파동 주식 분석기 (단독 HTML)</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Pretendard", sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+        header { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #30363d; }
+        header h1 { font-size: 28px; margin-bottom: 8px; letter-spacing: -0.02em; }
+        header p { color: #8b949e; font-size: 14px; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #30363d; }
+        .tab {
+            background: transparent; color: #8b949e; border: none;
+            padding: 10px 16px; cursor: pointer; font-size: 14px; font-family: inherit;
+            border-bottom: 2px solid transparent; margin-bottom: -1px;
+        }
+        .tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .controls {
+            background: #161b22; padding: 20px; border-radius: 12px;
+            margin-bottom: 24px; border: 1px solid #30363d;
+        }
+        .form-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+        .form-row label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #8b949e; }
+        .form-row input, .form-row select {
+            background: #0d1117; color: #e6edf3; border: 1px solid #30363d;
+            border-radius: 6px; padding: 9px 11px; font-size: 14px;
+            min-width: 150px; font-family: inherit;
+        }
+        .form-row input:focus, .form-row select:focus {
+            border-color: #58a6ff; outline: none;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+        }
+        .form-row button {
+            background: #238636; color: white; border: none; border-radius: 6px;
+            padding: 10px 26px; font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: background 0.2s; font-family: inherit;
+        }
+        .form-row button:hover { background: #2ea043; }
+        .form-row button:disabled { background: #30363d; cursor: not-allowed; }
+        .form-row input[type="file"] { padding: 6px; }
+        .help { color: #8b949e; font-size: 12px; margin-top: 10px; }
+        .help code { background: #0d1117; padding: 2px 6px; border-radius: 3px; color: #79c0ff; }
+        .status { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; display: none; font-size: 14px; }
+        .status.error {
+            display: block; background: rgba(248, 81, 73, 0.1);
+            color: #ffa198; border: 1px solid rgba(248, 81, 73, 0.4);
+        }
+        .status.loading {
+            display: block; background: rgba(88, 166, 255, 0.1);
+            color: #79c0ff; border: 1px solid rgba(88, 166, 255, 0.3);
+        }
+        #chart {
+            background: #161b22; border-radius: 12px; border: 1px solid #30363d;
+            padding: 16px; margin-bottom: 24px; min-height: 600px;
+        }
+        .analysis-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px; margin-bottom: 24px;
+        }
+        .card { background: #161b22; padding: 20px; border-radius: 12px; border: 1px solid #30363d; }
+        .card h3 { margin-bottom: 12px; font-size: 15px; color: #58a6ff; font-weight: 600; }
+        .card ul { list-style: none; }
+        .card li { padding: 7px 0; color: #c9d1d9; font-size: 14px; border-bottom: 1px solid #21262d; }
+        .card li:last-child { border-bottom: none; }
+        .card li b { color: #f0f6fc; font-weight: 600; }
+        #summary { color: #c9d1d9; font-size: 14px; line-height: 1.6; }
+        .bullish { color: #3fb950; font-weight: 600; }
+        .bearish { color: #f85149; font-weight: 600; }
+        .rules {
+            background: #161b22; padding: 16px 20px; border-radius: 12px;
+            border: 1px solid #30363d; color: #c9d1d9; font-size: 13px;
+        }
+        .rules summary { cursor: pointer; color: #58a6ff; font-weight: 600; user-select: none; }
+        .rules ol { margin: 12px 0 12px 20px; color: #8b949e; }
+        .rules ol li { padding: 3px 0; }
+        .disclaimer { margin-top: 8px; color: #8b949e; font-size: 12px; font-style: italic; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>엘리엇 파동 주식 분석기</h1>
+        <p>백엔드 없이 브라우저에서 동작하는 단독 HTML 버전. ZigZag 기반으로 임펄스 5파 + 조정 ABC를 자동 식별합니다.</p>
+    </header>
+
+    <div class="tabs">
+        <button class="tab active" data-panel="tickerPanel">티커 자동 수집</button>
+        <button class="tab" data-panel="csvPanel">CSV 업로드</button>
+    </div>
+
+    <section class="controls">
+        <div id="tickerPanel" class="panel active">
+            <div class="form-row">
+                <label>티커
+                    <input type="text" id="ticker" value="AAPL" placeholder="AAPL, TSLA, ^GSPC, BTC-USD">
+                </label>
+                <label>기간
+                    <select id="period">
+                        <option value="3mo">3개월</option>
+                        <option value="6mo">6개월</option>
+                        <option value="1y" selected>1년</option>
+                        <option value="2y">2년</option>
+                        <option value="5y">5년</option>
+                        <option value="10y">10년</option>
+                        <option value="max">최대</option>
+                    </select>
+                </label>
+                <label>간격
+                    <select id="interval">
+                        <option value="1d" selected>일봉</option>
+                        <option value="1wk">주봉</option>
+                        <option value="1mo">월봉</option>
+                        <option value="1h">1시간</option>
+                    </select>
+                </label>
+                <label>ZigZag 민감도 (%)
+                    <input type="number" id="threshold" value="5" min="1" max="30" step="0.5">
+                </label>
+                <button id="fetchBtn">분석</button>
+            </div>
+            <p class="help">
+                Yahoo Finance를 <code>corsproxy.io</code> 경유로 호출합니다.
+                실패 시 CSV 업로드 탭을 이용하세요.
+                한국 종목은 <code>005930.KS</code>처럼 접미사를 붙이세요.
+            </p>
+        </div>
+
+        <div id="csvPanel" class="panel">
+            <div class="form-row">
+                <label>CSV 파일
+                    <input type="file" id="csvFile" accept=".csv,text/csv">
+                </label>
+                <label>ZigZag 민감도 (%)
+                    <input type="number" id="csvThreshold" value="5" min="1" max="30" step="0.5">
+                </label>
+                <label>심볼명(선택)
+                    <input type="text" id="csvSymbol" placeholder="차트 제목용">
+                </label>
+                <button id="csvBtn">CSV 분석</button>
+            </div>
+            <p class="help">
+                헤더에 <code>Date,Open,High,Low,Close[,Volume]</code> 컬럼이 있는 CSV.
+                Yahoo Finance > Historical Data > Download 형식과 호환됩니다.
+            </p>
+        </div>
+    </section>
+
+    <section class="results">
+        <div id="status" class="status"></div>
+        <div id="chart"></div>
+        <div class="analysis-grid">
+            <div class="card">
+                <h3>요약</h3>
+                <div id="summary">티커를 입력하거나 CSV를 업로드한 후 분석을 시작하세요.</div>
+            </div>
+            <div class="card">
+                <h3>파동 정보</h3>
+                <ul id="details"><li>분석 후 표시됩니다.</li></ul>
+            </div>
+            <div class="card">
+                <h3>피보나치 목표가</h3>
+                <ul id="targets"><li>분석 후 표시됩니다.</li></ul>
+            </div>
+        </div>
+        <details class="rules">
+            <summary>엘리엇 파동 3대 규칙</summary>
+            <ol>
+                <li>2파는 1파를 100% 이상 되돌리지 못한다.</li>
+                <li>3파는 1·3·5파 중 가장 짧을 수 없다.</li>
+                <li>4파의 가격대는 1파의 가격대와 겹치지 않는다.</li>
+            </ol>
+            <p class="disclaimer">엘리엇 파동 식별은 본질적으로 주관적이며, 본 도구의 결과는 보조 지표입니다. 단독 매매 근거로 사용하지 마십시오.</p>
+        </details>
+    </section>
+</div>
+
+<script>
+// =============================================================
+//  Elliott Wave detection (ported from Python elliott_wave.py)
+// =============================================================
+function zigzag(highs, lows, deviation) {
+    const n = highs.length;
+    const pivots = [];
+    if (n < 2) return pivots;
+    let lastHigh = highs[0], lastHighIdx = 0;
+    let lastLow = lows[0], lastLowIdx = 0;
+    let direction = null;
+    for (let i = 1; i < n; i++) {
+        const hi = highs[i], lo = lows[i];
+        if (direction === null) {
+            if (hi >= lastLow * (1 + deviation)) {
+                pivots.push([lastLowIdx, lastLow, 'L']);
+                lastHigh = hi; lastHighIdx = i; direction = 'up';
+            } else if (lo <= lastHigh * (1 - deviation)) {
+                pivots.push([lastHighIdx, lastHigh, 'H']);
+                lastLow = lo; lastLowIdx = i; direction = 'down';
+            } else {
+                if (hi > lastHigh) { lastHigh = hi; lastHighIdx = i; }
+                if (lo < lastLow) { lastLow = lo; lastLowIdx = i; }
+            }
+        } else if (direction === 'up') {
+            if (hi > lastHigh) { lastHigh = hi; lastHighIdx = i; }
+            else if (lo <= lastHigh * (1 - deviation)) {
+                pivots.push([lastHighIdx, lastHigh, 'H']);
+                lastLow = lo; lastLowIdx = i; direction = 'down';
+            }
+        } else {
+            if (lo < lastLow) { lastLow = lo; lastLowIdx = i; }
+            else if (hi >= lastLow * (1 + deviation)) {
+                pivots.push([lastLowIdx, lastLow, 'L']);
+                lastHigh = hi; lastHighIdx = i; direction = 'up';
+            }
+        }
+    }
+    if (direction === 'up') pivots.push([lastHighIdx, lastHigh, 'H']);
+    else if (direction === 'down') pivots.push([lastLowIdx, lastLow, 'L']);
+    return pivots;
+}
+
+function validatePattern(seq) {
+    if (seq.length < 6) return null;
+    const types = seq.map(p => p[2]);
+    for (let i = 1; i < seq.length; i++) {
+        if (types[i] === types[i - 1]) return null;
+    }
+    let direction;
+    if (types[0] === 'L') direction = 'bullish';
+    else if (types[0] === 'H') direction = 'bearish';
+    else return null;
+
+    const p = seq.slice(0, 6);
+    let wave1, wave3, wave5, wave2_retrace, wave4_retrace;
+    if (direction === 'bullish') {
+        wave1 = p[1][1] - p[0][1];
+        wave3 = p[3][1] - p[2][1];
+        wave5 = p[5][1] - p[4][1];
+        if (wave1 <= 0 || wave3 <= 0 || wave5 <= 0) return null;
+        if (p[2][1] <= p[0][1]) return null;
+        if (wave3 < wave1 && wave3 < wave5) return null;
+        if (p[4][1] <= p[1][1]) return null;
+        wave2_retrace = (p[1][1] - p[2][1]) / wave1;
+        wave4_retrace = (p[3][1] - p[4][1]) / wave3;
+    } else {
+        wave1 = p[0][1] - p[1][1];
+        wave3 = p[2][1] - p[3][1];
+        wave5 = p[4][1] - p[5][1];
+        if (wave1 <= 0 || wave3 <= 0 || wave5 <= 0) return null;
+        if (p[2][1] >= p[0][1]) return null;
+        if (wave3 < wave1 && wave3 < wave5) return null;
+        if (p[4][1] >= p[1][1]) return null;
+        wave2_retrace = (p[2][1] - p[1][1]) / wave1;
+        wave4_retrace = (p[4][1] - p[3][1]) / wave3;
+    }
+
+    const labels = ['0', '1', '2', '3', '4', '5'];
+    const waves = labels.map((lbl, i) => ({
+        label: lbl, index: p[i][0], price: p[i][1],
+    }));
+
+    let hasCorrection = false;
+    if (seq.length >= 9) {
+        const a = seq[6], b = seq[7], c = seq[8];
+        if (direction === 'bullish' && types[6] === 'L' && types[7] === 'H' && types[8] === 'L') {
+            if (a[1] < p[5][1] && b[1] > a[1] && b[1] < p[5][1] && c[1] < a[1]) hasCorrection = true;
+        } else if (direction === 'bearish' && types[6] === 'H' && types[7] === 'L' && types[8] === 'H') {
+            if (a[1] > p[5][1] && b[1] < a[1] && b[1] > p[5][1] && c[1] > a[1]) hasCorrection = true;
+        }
+        if (hasCorrection) {
+            const abcLabels = ['A', 'B', 'C'];
+            for (let i = 0; i < 3; i++) {
+                waves.push({label: abcLabels[i], index: seq[6 + i][0], price: seq[6 + i][1]});
+            }
+        }
+    }
+
+    return {
+        direction, waves,
+        wave2_retrace, wave4_retrace,
+        wave3_extension: wave3 / wave1,
+        wave5_vs_wave1: wave5 / wave1,
+        has_correction: hasCorrection,
+    };
+}
+
+function findImpulseWaves(pivots) {
+    const n = pivots.length;
+    if (n < 6) return null;
+    const maxOffset = Math.min(n - 5, 4);
+    for (let endOffset = 0; endOffset < maxOffset; endOffset++) {
+        const end = n - endOffset;
+        for (const length of [9, 6]) {
+            if (end >= length) {
+                const result = validatePattern(pivots.slice(end - length, end));
+                if (result) return result;
+            }
+        }
+    }
+    return null;
+}
+
+function projectTargets(wd) {
+    if (!wd) return null;
+    const waves = wd.waves;
+    const direction = wd.direction;
+    if (waves.length === 6) {
+        const wave5_price = waves[5].price;
+        const wave0_price = waves[0].price;
+        const range = Math.abs(wave5_price - wave0_price);
+        const sign = direction === 'bullish' ? -1 : 1;
+        return {
+            phase: 'expecting_correction',
+            next_label: 'A',
+            levels: [
+                {name: 'A 38.2% 되돌림', price: wave5_price + sign * range * 0.382},
+                {name: 'A 50.0% 되돌림', price: wave5_price + sign * range * 0.500},
+                {name: 'A 61.8% 되돌림', price: wave5_price + sign * range * 0.618},
+            ],
+        };
+    } else if (waves.length === 9) {
+        const a_price = waves[6].price;
+        const c_price = waves[8].price;
+        const leg = Math.abs(a_price - c_price);
+        const sign = direction === 'bullish' ? 1 : -1;
+        return {
+            phase: 'expecting_new_impulse',
+            next_label: '1',
+            levels: [
+                {name: '신규 1파 38.2% 확장', price: c_price + sign * leg * 0.382},
+                {name: '신규 1파 61.8% 확장', price: c_price + sign * leg * 0.618},
+                {name: '신규 1파 100% 확장', price: c_price + sign * leg * 1.000},
+            ],
+        };
+    }
+    return null;
+}
+
+function generateAnalysis(wd) {
+    if (!wd) {
+        return {
+            summary: '명확한 엘리엇 파동 패턴을 감지하지 못했습니다. ZigZag 민감도를 조정해 보세요.',
+            details: [],
+        };
+    }
+    const direction = wd.direction;
+    const n = wd.waves.length;
+    const dirKr = direction === 'bullish' ? '상승' : '하락';
+    const oppKr = direction === 'bullish' ? '하락' : '상승';
+    const details = [
+        `추세 방향: ${dirKr}`,
+        `2파 되돌림: ${(wd.wave2_retrace * 100).toFixed(1)}% (전형값 50~61.8%)`,
+        `3파 / 1파 비율: ${(wd.wave3_extension * 100).toFixed(1)}% (161.8% 이상이면 강한 임펄스)`,
+        `4파 되돌림: ${(wd.wave4_retrace * 100).toFixed(1)}% (전형값 23.6~38.2%)`,
+        `5파 / 1파 비율: ${(wd.wave5_vs_wave1 * 100).toFixed(1)}%`,
+    ];
+    let summary;
+    if (n === 6) summary = `${dirKr} 임펄스 5파 완성으로 추정됩니다. ${oppKr} 방향 ABC 조정 진입이 예상됩니다.`;
+    else if (n === 9) summary = `${dirKr} 5파 + ABC 조정 사이클이 완성된 것으로 보입니다. 신규 ${dirKr} 임펄스 시작 가능성이 있습니다.`;
+    else summary = `${dirKr} 추세 진행 중`;
+    return {summary, details};
+}
+
+function analyzeData(dates, opens, highs, lows, closes, volumes, threshold) {
+    const pivots = zigzag(highs, lows, threshold);
+    const wave_data = findImpulseWaves(pivots);
+    const targets = projectTargets(wave_data);
+    const analysis = generateAnalysis(wave_data);
+    const pivotData = pivots.map(p => ({
+        index: p[0], date: dates[p[0]], price: p[1], type: p[2]
+    }));
+    return {
+        dates, open: opens, high: highs, low: lows, close: closes, volume: volumes,
+        pivots: pivotData, wave_data, targets, analysis,
+        current_price: closes.length ? closes[closes.length - 1] : null,
+    };
+}
+
+// =============================================================
+//  Data sources
+// =============================================================
+const PROXIES = [
+    'https://corsproxy.io/?url=',
+    'https://api.allorigins.win/raw?url=',
+];
+
+const PERIOD_TO_RANGE = {
+    '3mo': '3mo', '6mo': '6mo', '1y': '1y', '2y': '2y',
+    '5y': '5y', '10y': '10y', 'max': 'max',
+};
+
+async function fetchYahoo(ticker, period, interval) {
+    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${PERIOD_TO_RANGE[period] || '1y'}&interval=${interval}`;
+    let lastErr;
+    for (const proxy of PROXIES) {
+        try {
+            const url = proxy + encodeURIComponent(yahooUrl);
+            const res = await fetch(url);
+            if (!res.ok) { lastErr = new Error(`HTTP ${res.status}`); continue; }
+            const json = await res.json();
+            const chart = json && json.chart;
+            if (!chart || !chart.result || chart.result.length === 0) {
+                lastErr = new Error(chart && chart.error ? chart.error.description : '응답 형식 오류');
+                continue;
+            }
+            const r = chart.result[0];
+            const ts = r.timestamp || [];
+            const q = r.indicators.quote[0];
+            const dates = ts.map(t => new Date(t * 1000).toISOString().slice(0, 10));
+            // Filter rows that have valid close
+            const opens = [], highs = [], lows = [], closes = [], vols = [], cleanDates = [];
+            for (let i = 0; i < ts.length; i++) {
+                if (q.close[i] == null || q.high[i] == null || q.low[i] == null) continue;
+                cleanDates.push(dates[i]);
+                opens.push(q.open[i] ?? q.close[i]);
+                highs.push(q.high[i]);
+                lows.push(q.low[i]);
+                closes.push(q.close[i]);
+                vols.push(q.volume ? (q.volume[i] ?? 0) : 0);
+            }
+            return {dates: cleanDates, opens, highs, lows, closes, volumes: vols};
+        } catch (e) {
+            lastErr = e;
+        }
+    }
+    throw new Error(`데이터 수집 실패: ${lastErr ? lastErr.message : 'unknown'}`);
+}
+
+function parseCSV(text) {
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) throw new Error('CSV에 데이터가 없습니다.');
+    const header = lines[0].split(',').map(s => s.trim().toLowerCase());
+    const idx = (name) => header.indexOf(name);
+    const di = idx('date'), oi = idx('open'), hi = idx('high'),
+          li = idx('low'), ci = idx('close'), vi = idx('volume');
+    if (di < 0 || hi < 0 || li < 0 || ci < 0)
+        throw new Error('CSV 헤더에 Date/High/Low/Close 컬럼이 필요합니다.');
+
+    const dates = [], opens = [], highs = [], lows = [], closes = [], vols = [];
+    for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',');
+        if (cols.length < 5) continue;
+        const close = parseFloat(cols[ci]);
+        const high = parseFloat(cols[hi]);
+        const low = parseFloat(cols[li]);
+        if (isNaN(close) || isNaN(high) || isNaN(low)) continue;
+        dates.push(cols[di].trim());
+        opens.push(oi >= 0 ? (parseFloat(cols[oi]) || close) : close);
+        highs.push(high);
+        lows.push(low);
+        closes.push(close);
+        vols.push(vi >= 0 ? (parseFloat(cols[vi]) || 0) : 0);
+    }
+    if (dates.length < 10) throw new Error('CSV에서 유효한 행이 너무 적습니다.');
+    return {dates, opens, highs, lows, closes, volumes: vols};
+}
+
+// =============================================================
+//  UI
+// =============================================================
+const statusEl = document.getElementById('status');
+function showError(msg) { statusEl.className = 'status error'; statusEl.textContent = msg; }
+function showLoading(msg) { statusEl.className = 'status loading'; statusEl.textContent = msg; }
+function hideStatus() { statusEl.style.display = 'none'; }
+
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.panel).classList.add('active');
+    });
+});
+
+document.getElementById('fetchBtn').addEventListener('click', async () => {
+    const ticker = document.getElementById('ticker').value.trim().toUpperCase();
+    const period = document.getElementById('period').value;
+    const interval = document.getElementById('interval').value;
+    const threshold = parseFloat(document.getElementById('threshold').value) / 100;
+    if (!ticker) { showError('티커를 입력하세요.'); return; }
+    const btn = document.getElementById('fetchBtn');
+    btn.disabled = true;
+    showLoading(`${ticker} 데이터 수집 중... (Yahoo Finance via CORS proxy)`);
+    try {
+        const data = await fetchYahoo(ticker, period, interval);
+        const result = analyzeData(data.dates, data.opens, data.highs, data.lows,
+                                   data.closes, data.volumes, threshold);
+        result.ticker = ticker;
+        result.period = period;
+        result.interval = interval;
+        result.threshold = threshold;
+        hideStatus();
+        renderChart(result);
+        renderAnalysis(result);
+    } catch (e) {
+        showError(e.message + ' — CSV 업로드 탭을 시도해 보세요.');
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+document.getElementById('csvBtn').addEventListener('click', () => {
+    const file = document.getElementById('csvFile').files[0];
+    if (!file) { showError('CSV 파일을 선택하세요.'); return; }
+    const threshold = parseFloat(document.getElementById('csvThreshold').value) / 100;
+    const symbol = document.getElementById('csvSymbol').value.trim() || file.name.replace(/\.csv$/i, '');
+    const btn = document.getElementById('csvBtn');
+    btn.disabled = true;
+    showLoading('CSV 파싱 및 분석 중...');
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        try {
+            const data = parseCSV(ev.target.result);
+            const result = analyzeData(data.dates, data.opens, data.highs, data.lows,
+                                       data.closes, data.volumes, threshold);
+            result.ticker = symbol;
+            result.period = `${data.dates[0]} ~ ${data.dates[data.dates.length - 1]}`;
+            result.interval = 'csv';
+            result.threshold = threshold;
+            hideStatus();
+            renderChart(result);
+            renderAnalysis(result);
+        } catch (e) {
+            showError(e.message);
+        } finally {
+            btn.disabled = false;
+        }
+    };
+    reader.onerror = () => { showError('파일을 읽을 수 없습니다.'); btn.disabled = false; };
+    reader.readAsText(file);
+});
+
+// =============================================================
+//  Chart + analysis rendering
+// =============================================================
+function formatPrice(p) {
+    if (p == null || isNaN(p)) return '-';
+    if (Math.abs(p) >= 100) return p.toFixed(2);
+    if (Math.abs(p) >= 1) return p.toFixed(3);
+    return p.toFixed(5);
+}
+
+function renderChart(data) {
+    const traces = [{
+        x: data.dates, open: data.open, high: data.high, low: data.low, close: data.close,
+        type: 'candlestick', name: data.ticker,
+        increasing: {line: {color: '#3fb950'}, fillcolor: '#3fb950'},
+        decreasing: {line: {color: '#f85149'}, fillcolor: '#f85149'},
+        showlegend: false,
+    }];
+
+    if (data.pivots && data.pivots.length > 0) {
+        traces.push({
+            x: data.pivots.map(p => p.date),
+            y: data.pivots.map(p => p.price),
+            mode: 'lines+markers', name: 'ZigZag',
+            line: {color: '#79c0ff', width: 1.5, dash: 'dot'},
+            marker: {size: 7, color: '#79c0ff'},
+            hoverinfo: 'skip', showlegend: false,
+        });
+    }
+
+    const annotations = [];
+    if (data.wave_data && data.wave_data.waves) {
+        const waves = data.wave_data.waves;
+        const isBull = data.wave_data.direction === 'bullish';
+        for (let i = 0; i < waves.length; i++) {
+            const w = waves[i];
+            if (w.label === '0') continue;
+            const isHigh = (i % 2 === 1) === isBull;
+            annotations.push({
+                x: data.dates[w.index], y: w.price, text: `<b>${w.label}</b>`,
+                showarrow: true, arrowhead: 2, arrowsize: 1.2, arrowwidth: 1.5,
+                arrowcolor: '#f0b400', ax: 0, ay: isHigh ? -32 : 32,
+                font: {color: '#f0b400', size: 14},
+                bgcolor: 'rgba(13, 17, 23, 0.92)',
+                bordercolor: '#f0b400', borderwidth: 1, borderpad: 5,
+            });
+        }
+    }
+
+    if (data.targets && data.targets.levels) {
+        for (const lvl of data.targets.levels) {
+            annotations.push({
+                xref: 'paper', x: 1.0, xanchor: 'right', y: lvl.price,
+                text: `${lvl.name}: ${formatPrice(lvl.price)}`,
+                showarrow: false, font: {color: '#a371f7', size: 11},
+                bgcolor: 'rgba(13, 17, 23, 0.85)',
+                bordercolor: '#a371f7', borderwidth: 1, borderpad: 3,
+            });
+        }
+    }
+
+    const shapes = (data.targets && data.targets.levels) ? data.targets.levels.map(lvl => ({
+        type: 'line', xref: 'paper', x0: 0, x1: 1,
+        y0: lvl.price, y1: lvl.price,
+        line: {color: 'rgba(163, 113, 247, 0.45)', width: 1, dash: 'dash'},
+    })) : [];
+
+    const title = `${data.ticker} (${data.period}, ${data.interval}, ZZ ${(data.threshold * 100).toFixed(1)}%)`;
+
+    Plotly.newPlot('chart', traces, {
+        title: {text: title, font: {color: '#e6edf3', size: 15}},
+        paper_bgcolor: '#161b22', plot_bgcolor: '#0d1117',
+        font: {color: '#c9d1d9', family: 'inherit'},
+        xaxis: {gridcolor: '#21262d', rangeslider: {visible: false}, type: 'category', tickangle: -30, nticks: 12},
+        yaxis: {gridcolor: '#21262d', title: '가격'},
+        margin: {l: 64, r: 180, t: 50, b: 60},
+        height: 600, showlegend: false,
+        annotations, shapes, hovermode: 'x unified',
+    }, {responsive: true, displayModeBar: false});
+}
+
+function renderAnalysis(data) {
+    const summary = document.getElementById('summary');
+    const details = document.getElementById('details');
+    const targets = document.getElementById('targets');
+
+    summary.textContent = data.analysis.summary;
+    summary.className = data.wave_data
+        ? (data.wave_data.direction === 'bullish' ? 'bullish' : 'bearish')
+        : '';
+
+    details.innerHTML = '';
+    if (data.analysis.details && data.analysis.details.length > 0) {
+        for (const d of data.analysis.details) {
+            const li = document.createElement('li');
+            li.textContent = d;
+            details.appendChild(li);
+        }
+    } else {
+        details.innerHTML = '<li>표시할 내용이 없습니다.</li>';
+    }
+
+    targets.innerHTML = '';
+    if (data.targets && data.targets.levels) {
+        for (const lvl of data.targets.levels) {
+            const li = document.createElement('li');
+            li.innerHTML = `${lvl.name}: <b>${formatPrice(lvl.price)}</b>`;
+            targets.appendChild(li);
+        }
+    } else {
+        targets.innerHTML = '<li>유효한 임펄스 패턴이 감지되지 않아 목표가를 산출할 수 없습니다.</li>';
+    }
+    if (data.current_price != null) {
+        const li = document.createElement('li');
+        li.style.marginTop = '8px';
+        li.style.color = '#58a6ff';
+        li.innerHTML = `현재가: <b>${formatPrice(data.current_price)}</b>`;
+        targets.appendChild(li);
+    }
+}
+</script>
+</body>
+</html>
