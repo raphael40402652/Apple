@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>엘리엇 파동 주식 분석기</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>엘리엇 파동 주식 분석기</h1>
+            <p>티커를 입력하면 ZigZag 기반으로 임펄스 5파 + 조정 ABC 패턴을 자동 식별합니다.</p>
+        </header>
+
+        <section class="controls">
+            <form id="analyzeForm">
+                <div class="form-row">
+                    <label>티커
+                        <input type="text" id="ticker" value="AAPL" placeholder="예: AAPL, TSLA, ^GSPC, BTC-USD">
+                    </label>
+                    <label>기간
+                        <select id="period">
+                            <option value="3mo">3개월</option>
+                            <option value="6mo">6개월</option>
+                            <option value="1y" selected>1년</option>
+                            <option value="2y">2년</option>
+                            <option value="5y">5년</option>
+                            <option value="10y">10년</option>
+                            <option value="max">최대</option>
+                        </select>
+                    </label>
+                    <label>간격
+                        <select id="interval">
+                            <option value="1d" selected>일봉</option>
+                            <option value="1wk">주봉</option>
+                            <option value="1mo">월봉</option>
+                            <option value="1h">1시간</option>
+                        </select>
+                    </label>
+                    <label>ZigZag 민감도 (%)
+                        <input type="number" id="threshold" value="5" min="1" max="30" step="0.5">
+                    </label>
+                    <button type="submit" id="analyzeBtn">분석</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="results">
+            <div id="status" class="status"></div>
+            <div id="chart"></div>
+            <div class="analysis-grid">
+                <div class="card">
+                    <h3>요약</h3>
+                    <div id="summary">티커를 입력하고 분석을 시작하세요.</div>
+                </div>
+                <div class="card">
+                    <h3>파동 정보</h3>
+                    <ul id="details"><li>분석 후 표시됩니다.</li></ul>
+                </div>
+                <div class="card">
+                    <h3>피보나치 목표가</h3>
+                    <ul id="targets"><li>분석 후 표시됩니다.</li></ul>
+                </div>
+            </div>
+
+            <details class="rules">
+                <summary>엘리엇 파동 3대 규칙</summary>
+                <ol>
+                    <li>2파는 1파를 100% 이상 되돌리지 못한다.</li>
+                    <li>3파는 1·3·5파 중 가장 짧을 수 없다.</li>
+                    <li>4파의 가격대는 1파의 가격대와 겹치지 않는다.</li>
+                </ol>
+                <p class="disclaimer">본 도구의 결과는 통계적 보조 지표이며, 엘리엇 파동 식별은 본질적으로 주관적입니다. 투자 판단의 단독 근거로 사용하지 마십시오.</p>
+            </details>
+        </section>
+    </div>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

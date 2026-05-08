@@ -1,0 +1,193 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #30363d;
+}
+
+header h1 {
+    font-size: 28px;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+}
+
+header p {
+    color: #8b949e;
+    font-size: 14px;
+}
+
+.controls {
+    background: #161b22;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    border: 1px solid #30363d;
+}
+
+.form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+}
+
+.form-row label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: #8b949e;
+}
+
+.form-row input,
+.form-row select {
+    background: #0d1117;
+    color: #e6edf3;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 9px 11px;
+    font-size: 14px;
+    min-width: 150px;
+    font-family: inherit;
+}
+
+.form-row input:focus,
+.form-row select:focus {
+    border-color: #58a6ff;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+}
+
+.form-row button {
+    background: #238636;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 26px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-family: inherit;
+}
+
+.form-row button:hover { background: #2ea043; }
+.form-row button:disabled { background: #30363d; cursor: not-allowed; }
+
+.status {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    display: none;
+    font-size: 14px;
+}
+
+.status.error {
+    display: block;
+    background: rgba(248, 81, 73, 0.1);
+    color: #ffa198;
+    border: 1px solid rgba(248, 81, 73, 0.4);
+}
+
+.status.loading {
+    display: block;
+    background: rgba(88, 166, 255, 0.1);
+    color: #79c0ff;
+    border: 1px solid rgba(88, 166, 255, 0.3);
+}
+
+#chart {
+    background: #161b22;
+    border-radius: 12px;
+    border: 1px solid #30363d;
+    padding: 16px;
+    margin-bottom: 24px;
+    min-height: 600px;
+}
+
+.analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.card {
+    background: #161b22;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #30363d;
+}
+
+.card h3 {
+    margin-bottom: 12px;
+    font-size: 15px;
+    color: #58a6ff;
+    font-weight: 600;
+}
+
+.card ul { list-style: none; }
+
+.card li {
+    padding: 7px 0;
+    color: #c9d1d9;
+    font-size: 14px;
+    border-bottom: 1px solid #21262d;
+}
+
+.card li:last-child { border-bottom: none; }
+.card li b { color: #f0f6fc; font-weight: 600; }
+
+#summary {
+    color: #c9d1d9;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.bullish { color: #3fb950; font-weight: 600; }
+.bearish { color: #f85149; font-weight: 600; }
+
+.rules {
+    background: #161b22;
+    padding: 16px 20px;
+    border-radius: 12px;
+    border: 1px solid #30363d;
+    color: #c9d1d9;
+    font-size: 13px;
+}
+
+.rules summary {
+    cursor: pointer;
+    color: #58a6ff;
+    font-weight: 600;
+    user-select: none;
+}
+
+.rules ol {
+    margin: 12px 0 12px 20px;
+    color: #8b949e;
+}
+
+.rules ol li { padding: 3px 0; }
+
+.disclaimer {
+    margin-top: 8px;
+    color: #8b949e;
+    font-size: 12px;
+    font-style: italic;
+}
